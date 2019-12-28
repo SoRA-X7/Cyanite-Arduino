@@ -271,11 +271,46 @@ void GetNextReport(USB_JoystickReport_Input_t *const ReportData)
 		holdDown = true;
 		ReportData->HAT = HAT_BOTTOM;
 		break;
-	case 'R':
+	case 'A':
 		ReportData->Button |= SWITCH_A;
 		break;
-	case 'L':
+	case 'B':
 		ReportData->Button |= SWITCH_B;
+		break;
+
+	// Other buttons which are unnecessary to play PPT
+	case 'd':
+		ReportData->HAT = HAT_BOTTOM;
+		break;
+	case 'R':
+		ReportData->Button |= SWITCH_R;
+		break;
+	case 'L':
+		ReportData->Button |= SWITCH_L;
+		break;
+	case 'r':
+		ReportData->Button |= SWITCH_ZR;
+		break;
+	case 'l':
+		ReportData->Button |= SWITCH_ZL;
+		break;
+	case 'Y':
+		ReportData->Button |= SWITCH_Y;
+		break;
+	case 'X':
+		ReportData->Button |= SWITCH_X;
+		break;
+	case '+':
+		ReportData->Button |= SWITCH_START;
+		break;
+	case '-':
+		ReportData->Button |= SWITCH_SELECT;
+		break;
+	case 'c':
+		ReportData->Button |= SWITCH_CAPTURE;
+		break;
+	case 'h':
+		ReportData->Button |= SWITCH_HOME;
 		break;
 	}
 
@@ -284,4 +319,3 @@ fin:
 	memcpy(&last_report, ReportData, sizeof(USB_JoystickReport_Input_t));
 	echoes = ECHOES;
 }
-// vim: noexpandtab
