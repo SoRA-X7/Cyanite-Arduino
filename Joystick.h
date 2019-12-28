@@ -118,6 +118,8 @@ typedef struct {
 	uint8_t  RY;     // Right Stick Y
 } USB_JoystickReport_Output_t;
 
+typedef unsigned char byte;
+
 // Function Prototypes
 // Setup all necessary hardware, including USB initialization.
 void SetupHardware(void);

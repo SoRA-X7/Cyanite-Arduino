@@ -6,6 +6,15 @@
         "algorithm": "c",
         "bitset": "c",
         "chrono": "c",
-        "unordered_map": "c"
+        "unordered_map": "c",
+        "__config": "c",
+        "__functional_03": "c",
+        "functional": "c",
+        "locale": "c",
+        "memory_resource": "c",
+        "iterator": "c",
+        "memory": "c",
+        "type_traits": "c",
+        "utility": "c"
     }
 }

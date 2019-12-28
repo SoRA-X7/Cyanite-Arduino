@@ -27,161 +27,14 @@ these buttons for our use.
 #include <LUFA/Drivers/Peripheral/Serial.h>
 #include "Joystick.h"
 
-uint8_t target = RELEASE;
-uint16_t command;
-
-void parseLine(char *line)
-{
-
-	char t[8];
-	char c[16];
-	sscanf(line, "%s %s", t, c);
-	if (strcasecmp(t, "Button") == 0)
-	{
-		target = Button;
-	}
-	else if (strcasecmp(t, "LX") == 0)
-	{
-		target = LX;
-	}
-	else if (strcasecmp(t, "LY") == 0)
-	{
-		target = LY;
-	}
-	else if (strcasecmp(t, "RX") == 0)
-	{
-		target = RX;
-	}
-	else if (strcasecmp(t, "RY") == 0)
-	{
-		target = RY;
-	}
-	else if (strcasecmp(t, "HAT") == 0)
-	{
-		target = HAT;
-	}
-	else
-	{
-		target = RELEASE;
-	}
-	if (strcasecmp(c, "Y") == 0)
-	{
-		command = SWITCH_Y;
-	}
-	else if (strcasecmp(c, "B") == 0)
-	{
-		command = SWITCH_B;
-	}
-	else if (strcasecmp(c, "A") == 0)
-	{
-		command = SWITCH_A;
-	}
-	else if (strcasecmp(c, "X") == 0)
-	{
-		command = SWITCH_X;
-	}
-	else if (strcasecmp(c, "L") == 0)
-	{
-		command = SWITCH_L;
-	}
-	else if (strcasecmp(c, "R") == 0)
-	{
-		command = SWITCH_R;
-	}
-	else if (strcasecmp(c, "ZL") == 0)
-	{
-		command = SWITCH_ZL;
-	}
-	else if (strcasecmp(c, "ZR") == 0)
-	{
-		command = SWITCH_ZR;
-	}
-	else if (strcasecmp(c, "SELECT") == 0)
-	{
-		command = SWITCH_SELECT;
-	}
-	else if (strcasecmp(c, "START") == 0)
-	{
-		command = SWITCH_START;
-	}
-	else if (strcasecmp(c, "LCLICK") == 0)
-	{
-		command = SWITCH_LCLICK;
-	}
-	else if (strcasecmp(c, "RCLICK") == 0)
-	{
-		command = SWITCH_RCLICK;
-	}
-	else if (strcasecmp(c, "HOME") == 0)
-	{
-		command = SWITCH_HOME;
-	}
-	else if (strcasecmp(c, "CAPTURE") == 0)
-	{
-		command = SWITCH_CAPTURE;
-	}
-	else if (strcasecmp(c, "RELEASE") == 0)
-	{
-		command = SWITCH_RELEASE;
-	}
-	else if (strcasecmp(c, "MIN") == 0)
-	{
-		command = STICK_MIN;
-	}
-	else if (strcasecmp(c, "MAX") == 0)
-	{
-		command = STICK_MAX;
-	}
-	else if (strcasecmp(c, "TOP") == 0)
-	{
-		command = HAT_TOP;
-	}
-	else if (strcasecmp(c, "TOP_RIGHT") == 0)
-	{
-		command = HAT_TOP_RIGHT;
-	}
-	else if (strcasecmp(c, "RIGHT") == 0)
-	{
-		command = HAT_RIGHT;
-	}
-	else if (strcasecmp(c, "BOTTOM_RIGHT") == 0)
-	{
-		command = HAT_BOTTOM_RIGHT;
-	}
-	else if (strcasecmp(c, "BOTTOM") == 0)
-	{
-		command = HAT_BOTTOM;
-	}
-	else if (strcasecmp(c, "BOTTOM_LEFT") == 0)
-	{
-		command = HAT_BOTTOM_LEFT;
-	}
-	else if (strcasecmp(c, "LEFT") == 0)
-	{
-		command = HAT_LEFT;
-	}
-	else if (strcasecmp(c, "TOP_LEFT") == 0)
-	{
-		command = HAT_TOP_LEFT;
-	}
-	else if (strcasecmp(c, "CENTER") == 0)
-	{
-		if (target == HAT)
-		{
-			command = HAT_CENTER;
-		}
-		else
-		{
-			command = STICK_CENTER;
-		}
-	}
-	else
-	{
-		target = RELEASE;
-	}
-}
-
 #define MAX_BUFFER 32
+char commands[MAX_BUFFER];
+int cmdIndex = 0;
+int cmdLen = 0;
+int count = 0;
+bool active = false;
+bool holdDown = false;
+
 char b[MAX_BUFFER];
 uint8_t l = 0;
 ISR(USART1_RX_vect)
@@ -193,7 +46,12 @@ ISR(USART1_RX_vect)
 	}
 	if (c == '\r')
 	{
-		parseLine(b);
+		memcpy(commands, b, MAX_BUFFER);
+		cmdIndex = 0;
+		count = -1;
+		active = true;
+		cmdLen = l;
+		holdDown = false;
 		l = 0;
 		memset(b, 0, sizeof(b));
 	}
@@ -354,8 +212,6 @@ void HID_Task(void)
 #define ECHOES 2
 int echoes = 0;
 USB_JoystickReport_Input_t last_report;
-
-long count = 0;
 // Prepare the next report for the host.
 void GetNextReport(USB_JoystickReport_Input_t *const ReportData)
 {
@@ -376,54 +232,56 @@ void GetNextReport(USB_JoystickReport_Input_t *const ReportData)
 		return;
 	}
 
-	if (count == 20 || count == 22 || count == 24)
-	{
-		ReportData->HAT = HAT_LEFT;
+	// If completed, do nothing
+	if (!active)
+		goto fin;
+	
+	// If the last command was SoftDrop, keep pressing down
+	if (holdDown) {
+		ReportData->HAT = HAT_BOTTOM;
+		goto fin;
 	}
-	if (count == 26 || count == 28 || count == 30 || count == 32 || count == 34)
-	{
-		ReportData->HAT = HAT_RIGHT;
-	}
-	if (count == 36)
-	{
-		ReportData->HAT = HAT_TOP;
-		ReportData->Button |= SWITCH_A;
-		count = 0;
-	}
-	count += 1;
 
+	count += 1;
+	if (count % 2 != 0)
+		goto fin;
+	cmdIndex = count / 2;
+	if (cmdIndex > cmdLen)
+	{
+		active = false;
+		goto fin;
+	}
+
+	switch (commands[cmdIndex])
+	{
+	case 'H':
+		ReportData->Button |= SWITCH_R;
+		_delay_ms(85);
+		break;
+	case '<':
+		ReportData->HAT = HAT_LEFT;
+		break;
+	case '>':
+		ReportData->HAT = HAT_RIGHT;
+		break;
+	case 'D':
+		ReportData->HAT = HAT_TOP;
+		break;
+	case 'S':
+		holdDown = true;
+		ReportData->HAT = HAT_BOTTOM;
+		break;
+	case 'R':
+		ReportData->Button |= SWITCH_A;
+		break;
+	case 'L':
+		ReportData->Button |= SWITCH_B;
+		break;
+	}
+
+fin:
 	// Prepare to echo this report
 	memcpy(&last_report, ReportData, sizeof(USB_JoystickReport_Input_t));
 	echoes = ECHOES;
-
-	// switch(target) {
-	// 	case Button:
-	// 		ReportData->Button |= command;
-	// 		break;
-	// 	case LX:
-	// 		ReportData->LX = command;
-	// 		break;
-	// 	case LY:
-	// 		ReportData->LY = command;
-	// 		break;
-	// 	case RX:
-	// 		ReportData->RX = command;
-	// 		break;
-	// 	case RY:
-	// 		ReportData->RY = command;
-	// 		break;
-	// 	case HAT:
-	// 		ReportData->HAT = command;
-	// 		break;
-	// 	case RELEASE:
-	// 	default:
-	// 		ReportData->LX = STICK_CENTER;
-	// 		ReportData->LY = STICK_CENTER;
-	// 		ReportData->RX = STICK_CENTER;
-	// 		ReportData->RY = STICK_CENTER;
-	// 		ReportData->HAT = HAT_CENTER;
-	// 		ReportData->Button |= SWITCH_RELEASE;
-	// 		break;
-	// }
 }
 // vim: noexpandtab
