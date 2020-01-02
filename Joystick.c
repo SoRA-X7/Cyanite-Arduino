@@ -34,6 +34,7 @@ int cmdLen = 0;
 int count = 0;
 bool active = false;
 bool holdDown = false;
+bool optimize = false;
 
 char b[MAX_BUFFER];
 uint8_t l = 0;
@@ -54,6 +55,14 @@ ISR(USART1_RX_vect)
 		holdDown = false;
 		l = 0;
 		memset(b, 0, sizeof(b));
+	}
+	else if (c == '!')
+	{
+		optimize = true;
+	}
+	else if (c == '?')
+	{
+		optimize = false;
 	}
 	else if (c != '\n' && l < MAX_BUFFER)
 	{
@@ -209,6 +218,8 @@ void HID_Task(void)
 	}
 }
 
+#define optimizable (optimize && cmdIndex + 1 < cmdLen)
+
 #define ECHOES 2
 int echoes = 0;
 USB_JoystickReport_Input_t last_report;
@@ -235,13 +246,13 @@ void GetNextReport(USB_JoystickReport_Input_t *const ReportData)
 	// If completed, do nothing
 	if (!active)
 		goto fin;
-	
+
 	// If the last command was SoftDrop, keep pressing down
-	if (holdDown) {
+	if (holdDown)
+	{
 		ReportData->HAT = HAT_BOTTOM;
 		goto fin;
 	}
-
 	count += 1;
 	if (count % 2 != 0)
 		goto fin;
@@ -260,9 +271,46 @@ void GetNextReport(USB_JoystickReport_Input_t *const ReportData)
 		break;
 	case '<':
 		ReportData->HAT = HAT_LEFT;
+		if (!optimizable)
+			break;
+
+		switch (commands[cmdIndex + 1])
+		{
+		case 'A':
+			ReportData->Button |= SWITCH_A;
+			cmdIndex++;
+			count += 2;
+			break;
+		case 'B':
+			ReportData->Button |= SWITCH_B;
+			cmdIndex++;
+			count += 2;
+			break;
+		default:
+			break;
+		}
+
 		break;
 	case '>':
 		ReportData->HAT = HAT_RIGHT;
+		if (!optimizable)
+			break;
+		switch (commands[cmdIndex + 1])
+		{
+		case 'A':
+			ReportData->Button |= SWITCH_A;
+			cmdIndex++;
+			count += 2;
+			break;
+		case 'B':
+			ReportData->Button |= SWITCH_B;
+			cmdIndex++;
+			count += 2;
+			break;
+		default:
+			break;
+		}
+
 		break;
 	case 'D':
 		ReportData->HAT = HAT_TOP;
@@ -273,9 +321,27 @@ void GetNextReport(USB_JoystickReport_Input_t *const ReportData)
 		break;
 	case 'A':
 		ReportData->Button |= SWITCH_A;
+		if (!optimizable)
+			break;
+		if (commands[cmdIndex + 1] == 'D')
+		{
+			ReportData->HAT = HAT_TOP;
+			cmdIndex++;
+			count += 2;
+		}
+
 		break;
 	case 'B':
 		ReportData->Button |= SWITCH_B;
+		if (!optimizable)
+			break;
+		if (commands[cmdIndex + 1] == 'D')
+		{
+			ReportData->HAT = HAT_TOP;
+			cmdIndex++;
+			count += 2;
+		}
+
 		break;
 
 	// Other buttons which are unnecessary to play PPT
